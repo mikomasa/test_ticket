@@ -1,45 +1,48 @@
 import 'package:postgres/postgres.dart';
- 
+
 class DatabaseHelper {
-  static final DatabaseHelper _instance = DatabaseHelper._internal();
-  late PostgreSQLConnection conn;
- 
-  // シングルトンインスタンスを返すファクトリコンストラクタ
-  factory DatabaseHelper() {
-    return _instance;
-  }
- 
-  // プライベートコンストラクタ
-  DatabaseHelper._internal() {
-    _initializeConnection();
-  }
- 
-  // PostgreSQLデータベースの初期化メソッド
-  Future<void> _initializeConnection() async {
-    conn = PostgreSQLConnection(
-      host:'34.133.185.219', // ホスト名
-      database:'ticket',         // データベース名
-      username: 'postgres', // ユーザー名
-      password: 'testticket', // パスワード
+  static final String host = '34.133.185.219';
+  static final int port = 5432;
+  static final String databaseName = 'ticket';
+  static final String username = 'postgres';
+  static final String password = 'testticket';
+
+  // PostgreSQLの接続設定
+  static Future<PostgreSQLConnection> connect() async {
+    final conn = PostgreSQLConnection(
+      host, 
+      port, 
+      databaseName, 
+      username: username, 
+      password: password,
     );
-    await conn.open(); // 接続の確立
+    
+    // データベースへの接続を開く
+    await conn.open();
+    print("Connection established successfully!");
+    return conn;
   }
- 
-  // FRIENDテーブルにデータを挿入するメソッド
-  Future<void> insertFriend({
+
+  // FRIENDテーブルにデータを挿入するメソッド(フレンド申請、承認、拒否、ブロック)
+  static Future<void> insertFriend({
+    required PostgreSQLConnection conn,
     required int friendId,
     required int userId,
     required int friendUserId,
-    String? requestType, // リクエストのタイプ（'send', 'approve', 'reject'）
+    String? requestType, // リクエストタイプ ('send', 'approve', 'reject')
   }) async {
+    // 現在の日付を取得
     final currentDate = DateTime.now();
+    // デフォルトの日付を設定（2000年1月1日）
     final defaultDate = DateTime(2000, 1, 1);
- 
+
+    // リクエスト送信日、承認日、拒否日をデフォルト値で初期化
     DateTime requestSendDate = defaultDate;
     DateTime requestApprovalDate = defaultDate;
     DateTime requestRejectionDate = defaultDate;
-    DateTime brockDate = defaultDate;
- 
+    DateTime brockDate = defaultDate; // ブロック日もデフォルト値
+
+    // 送られてきたリクエストタイプに応じて、日付を変更
     if (requestType == 'send') {
       requestSendDate = currentDate;
     } else if (requestType == 'approve') {
@@ -47,88 +50,121 @@ class DatabaseHelper {
     } else if (requestType == 'reject') {
       requestRejectionDate = currentDate;
     }
- 
-    await conn.query(
-      '''
+
+    // SQL文の挿入処理
+    await conn.query('''
       INSERT INTO FRIEND (
-        FRIEND_ID, USER_ID, FRIENDUSER_ID, REQUEST_SEND, REQUEST_APPROVAL, REQUEST_REJECTION, BROCK_DATE
-      ) VALUES (@friendId, @userId, @friendUserId, @requestSendDate, @requestApprovalDate, @requestRejectionDate, @brockDate)
-      ON CONFLICT (FRIEND_ID) DO UPDATE
-      SET USER_ID = @userId, FRIENDUSER_ID = @friendUserId, REQUEST_SEND = @requestSendDate,
-          REQUEST_APPROVAL = @requestApprovalDate, REQUEST_REJECTION = @requestRejectionDate, BROCK_DATE = @brockDate
-      ''',
-      substitutionValues: {
-        'friendId': friendId,
-        'userId': userId,
-        'friendUserId': friendUserId,
-        'requestSendDate': requestSendDate.toIso8601String(),
-        'requestApprovalDate': requestApprovalDate.toIso8601String(),
-        'requestRejectionDate': requestRejectionDate.toIso8601String(),
-        'brockDate': brockDate.toIso8601String(),
-      },
-    );
+        FRIEND_ID,
+        USER_ID,
+        FRIENDUSER_ID,
+        REQUEST_SEND,
+        REQUEST_APPROVAL,
+        REQUEST_REJECTION,
+        BROCK_DATE
+      ) VALUES (
+        @friendId,
+        @userId,
+        @friendUserId,
+        @requestSendDate,
+        @requestApprovalDate,
+        @requestRejectionDate,
+        @brockDate
+      )
+    ''', substitutionValues: {
+      'friendId': friendId,
+      'userId': userId,
+      'friendUserId': friendUserId,
+      'requestSendDate': requestSendDate,
+      'requestApprovalDate': requestApprovalDate,
+      'requestRejectionDate': requestRejectionDate,
+      'brockDate': brockDate,
+    });
+
+    print("Data inserted into FRIEND table successfully.");
   }
- 
-  // EVENTテーブルにデータを挿入するメソッド
-  Future<void> insertEvent({
+
+  // イベントテーブルにデータを挿入するメソッド(チケット販売、レポート作成、同行者募集)
+  static Future<void> insertEvent({
+    required PostgreSQLConnection conn,
     required int userId,
     required String eventName,
+    required String unitName,
     required String eventText,
     required String eventPlace,
     required int eventStatus,
-    bool saleFlag = false,
-    String? sponsoreName,
-    String? artistName,
+    String? requestType, // 「販売」か「」か
   }) async {
-    final currentDate = DateTime.now();
- 
-    await conn.query(
-      '''
-      INSERT INTO EVENT (
-        USER_ID, EVENT_NAME, SPONSORE_NAME, EVENT_TEXT, EVENT_DATE, EVENT_PRACE, SALE_FLAG, EVENT_STATUS, ARTIST_NAME
-      ) VALUES (@userId, @eventName, @sponsoreName, @eventText, @currentDate, @eventPlace, @saleFlag, @eventStatus, @artistName)
-      ON CONFLICT (EVENT_ID) DO UPDATE
-      SET USER_ID = @userId, EVENT_NAME = @eventName, SPONSORE_NAME = @sponsoreName, EVENT_TEXT = @eventText,
-          EVENT_DATE = @currentDate, EVENT_PRACE = @eventPlace, SALE_FLAG = @saleFlag, EVENT_STATUS = @eventStatus,
-          ARTIST_NAME = @artistName
-      ''',
-      substitutionValues: {
-        'userId': userId,
-        'eventName': eventName,
-        'sponsoreName': sponsoreName ?? '',
-        'eventText': eventText,
-        'currentDate': currentDate.toIso8601String(),
-        'eventPlace': eventPlace,
-        'saleFlag': saleFlag ? 1 : 0,
-        'eventStatus': eventStatus,
-        'artistName': artistName ?? '',
-      },
-    );
+    // 参加日時を現在日時で初期化
+    DateTime eventDate = DateTime.now();
+
+    // 募集者フラグを設定
+    bool saleFlag = requestType == "販売";
+
+    // SQL文の挿入処理
+    await conn.query('''
+    INSERT INTO EVENT (
+      USER_ID,
+      EVENT_NAME,
+      UNIT_NAME,
+      EVENT_TEXT,
+      EVENT_PLACE,
+      EVENT_DATE,
+      SALE_FLAG
+    ) VALUES (
+      @userId,
+      @eventName,
+      @unitName,
+      @eventText,
+      @eventPlace,
+      @eventDate,
+      @saleFlag
+    )
+    ''', substitutionValues: {
+      'userId': userId,
+      'eventName': eventName,
+      'unitName': unitName,
+      'eventText': eventText,
+      'eventPlace': eventPlace,
+      'eventDate': eventDate,
+      'saleFlag': saleFlag,
+    });
+
+    print("Data inserted into EVENT table successfully.");
   }
- 
-  // NOTIFICATIONテーブルにデータを挿入するメソッド
-  Future<void> insertNotification({
+
+  // 募集参加テーブルにデータを挿入するメソッド(同行者募集、同行者申請)
+  static Future<void> insertParticipation({
+    required PostgreSQLConnection conn,
     required int userId,
-    required int sourceUserId,
-    required int notificationNumber,
-    required DateTime notificationDate,
-    required DateTime notificationOpenDate,
+    required int companionId,
+    String? requestType, // 募集者か参加者か
   }) async {
-    await conn.query(
-      '''
-      INSERT INTO NOTIFICATION (
-        USER_ID, SOURCE_USER_ID, NOTIFICATION_NUMBER, NOTIFICATION_DATE, NOTIFICATION_OPEN_DATE
-      ) VALUES (@userId, @sourceUserId, @notificationNumber, @notificationDate, @notificationOpenDate)
-      ON CONFLICT (USER_ID, SOURCE_USER_ID) DO UPDATE
-      SET NOTIFICATION_NUMBER = @notificationNumber, NOTIFICATION_DATE = @notificationDate, NOTIFICATION_OPEN_DATE = @notificationOpenDate
-      ''',
-      substitutionValues: {
-        'userId': userId,
-        'sourceUserId': sourceUserId,
-        'notificationNumber': notificationNumber,
-        'notificationDate': notificationDate.toIso8601String(),
-        'notificationOpenDate': notificationOpenDate.toIso8601String(),
-      },
-    );
+    // 参加日時を現在日時で初期化
+    DateTime participationDate = DateTime.now();
+
+    // 募集者フラグを設定
+    bool participationFlag = requestType == "募集者";
+
+    // SQL文の挿入処理
+    await conn.query('''
+      INSERT INTO PARTICIPATION (
+        USER_ID,
+        COMPANION_ID,
+        PARTICIPATION_DATE,
+        PARTICIPATION_FLAG
+      ) VALUES (
+        @userId,
+        @companionId,
+        @participationDate,
+        @participationFlag
+      )
+    ''', substitutionValues: {
+      'userId': userId,
+      'companionId': companionId,
+      'participationDate': participationDate,
+      'participationFlag': participationFlag,
+    });
+
+    print("Data inserted into PARTICIPATION table successfully.");
   }
 }
