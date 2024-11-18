@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'main.dart';
 
 void main() {
@@ -18,7 +21,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const MyHomePage(title: 'イベント販売'),
-      
     );
   }
 }
@@ -48,54 +50,56 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-        Text(widget.title),
-        Row(
-          children: [
-        IconButton(
-          icon:Icon(Icons.notifications,size: 25,),
-          onPressed: () => {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context){
-                return MyApp();
-              }),
-            )
-          },
-        ),
-        IconButton(
-          icon:Icon(Icons.account_circle),
-          onPressed: () => {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context){
-                return MyApp();
-              }),
-            )
-          },
-        ),
+            Text(widget.title),
+            Row(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.notifications),
+                  onPressed: () => {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) {
+                        return MyApp();
+                      }),
+                    )
+                  },
+                  iconSize: 48.0,
+                ),
+                IconButton(
+                  icon: Icon(Icons.account_circle),
+                  onPressed: () => {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) {
+                        return MyApp();
+                      }),
+                    )
+                  },
+                  iconSize: 48.0,
+                ),
+              ],
+            ),
           ],
         ),
-          ],
-      ),
       ),
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(Icons.email),
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+          // alignment: Alignment.center,
+          // width:100,
+          // color:Colors.green,
+          // child:Column(
+          children: [
+            // myContainer(),
+            //   Expanded(child: myContainer()),
+            //   myContainer(),
+            Icon(Icons.ac_unit),
           ],
+          // ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: _incrementCounter,
+      //   tooltip: 'Increment',
+      //   child: const Icon(Icons.add),
+      // ),
     );
   }
 }
