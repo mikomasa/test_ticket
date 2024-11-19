@@ -1,196 +1,111 @@
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
+import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(new MyApp());
+void main() {
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return new MaterialApp(
-      title: 'Chat App',
-      theme: new ThemeData(
-          primaryColor: Colors.red
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
-      home: new UserPage(),
+      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class UserPage extends StatefulWidget {
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key, required this.title});
+
+  final String title;
 
   @override
-  _UserPageState createState() => new _UserPageState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _UserPageState extends State<UserPage> {
+class _MyHomePageState extends State<MyHomePage> {
+  int _counter = 0;
 
-  final _controller = TextEditingController();
+  void _incrementCounter() {
+    setState(() {
+      _counter++;
+    });
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-      appBar: new AppBar(
-        title: new Text("User Name Input Screen"),
-          backgroundColor: Colors.red
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
       ),
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Container(
-            margin: EdgeInsets.all(12.0),
-            child: TextFormField(
-              controller: _controller,
-              decoration: InputDecoration(
-                  labelText: 'User Name'
-              ),
-            ),
-          ),
+        children: [
           ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (builder) => ChatPage(_controller.text)));
-            },
-            child: Text("Setup complete", style: TextStyle(color: Colors.white),),
-          )
+            onPressed: _incrementCounter,
+            child: const Text(''),
+          ),
+          Text('Counter: $_counter'),
+          Expanded(
+            child: const ChatRoom(), // ChatRoomウィジェットをここに追加
+          ),
         ],
       ),
     );
   }
 }
 
-
-class ChatPage extends StatefulWidget {
-  ChatPage(this._userName);
-
-  final String _userName;
+class ChatRoom extends StatefulWidget {
+  const ChatRoom({Key? key}) : super(key: key);
 
   @override
-  _ChatPageState createState() => new _ChatPageState();
+  ChatRoomState createState() => ChatRoomState();
 }
 
-class _ChatPageState extends State<ChatPage> {
-  final _controller = TextEditingController();
+class ChatRoomState extends State<ChatRoom> {
+  final List<types.Message> _messages = [];
+  final _user = const types.User(id: '82091008-a484-4a89-ae75-a22bf8d6f3ac');
+    String randomString() {
+    final random = Random.secure();
+    final values = List<int>.generate(16, (i) => random.nextInt(255));
+    return base64UrlEncode(values);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-        appBar: new AppBar(
-          title: new Text("chat page"),
-            backgroundColor: Colors.red
-        ),
-        body: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10.0),
-          child: Column(
-            children: <Widget>[
-              Flexible(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection("ChatApp")
-                      .orderBy("time", descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return Container();
-                    return new ListView.builder(
-                      padding: new EdgeInsets.all(8.0),
-                      reverse: true,
-                      itemBuilder: (_, int index) {
-                        DocumentSnapshot document =
-                        snapshot.data!.docs[index];
-
-                        bool isSelfText = false;
-                        if (document['username'] == widget._userName) {
-                          isSelfText = true;
-                        }
-                        return isSelfText
-                            ? _SelfText(
-                            document['sent_text'], document['username'])
-                            : _OtherText(
-                            document['sent_text'], document['username']);
-                      },
-                      itemCount: snapshot.data!.docs.length,
-                    );
-                  },
-                ),
-              ),
-              new Divider(height: 1.0),
-              Container(
-                margin: EdgeInsets.only(bottom: 20.0, right: 10.0, left: 10.0),
-                child: Row(
-                  children: <Widget>[
-                    new Flexible(
-                      child: new TextField(
-                        controller: _controller,
-                        onSubmitted: _handleSubmit,
-                        decoration:
-                        new InputDecoration.collapsed(hintText: "send text"),
-                      ),
-                    ),
-                    new Container(
-                      child: new IconButton(
-                          icon: new Icon(
-                            Icons.chat,
-                            color: Colors.red,
-                          ),
-                          onPressed: () {
-                            _handleSubmit(_controller.text);
-                          }),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ));
-  }
-
-  Widget _SelfText(String message, String userName) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: <Widget>[
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            SizedBox(height: 12.0,),
-            Text(userName, style: TextStyle(color: Colors.red)),
-            Text(message),
-          ],
-        ),
-        Icon(Icons.person, color:Colors.red),
-      ],
+    return Scaffold(
+      body: Chat(
+        user: _user,
+        messages: _messages,
+        onSendPressed: _handleSendPressed,
+      ),
     );
   }
 
-  Widget _OtherText(String message, String userName) {
-    return Row(
-      children: <Widget>[
-        Icon(Icons.person_outline),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            SizedBox(height: 12.0,),
-            Text(userName),
-            Text(message),
-          ],
-        )
-      ],
-    );
-  }
-
-  _handleSubmit(String message) {
-    _controller.text = "";
-    var db = FirebaseFirestore.instance;
-    db.collection("ChatApp").add({
-      "username": widget._userName,
-      "sent_text": message,
-      "time": DateTime.now()
-    }).then((val) {
-      print("Success");
-    }).catchError((err) {
-      print(err);
+  void _addMessage(types.Message message) {
+    setState(() {
+      _messages.insert(0, message);
     });
+  }
+
+  void _handleSendPressed(types.PartialText message) {
+    final textMessage = types.TextMessage(
+      author: _user,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      id: randomString(),
+      text: message.text,
+    );
+
+    _addMessage(textMessage);
   }
 }
