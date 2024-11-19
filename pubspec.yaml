@@ -32,12 +32,11 @@ dependencies:
     sdk: flutter
 
   # PostgreSQL接続用パッケージ
-  postgres: ^3.4.3 # 最新バージョンを確認して適宜更新
+  postgres: ^2.4.2 # 最新バージョンを確認して適宜更新
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  postgres: ^3.4.3
   firebase_auth: ^5.3.3
   image_picker: ^1.1.2
   uuid: ^4.5.1
@@ -46,10 +45,8 @@ dependencies:
   firebase_storage: ^12.3.6
   google_sign_in: ^6.2.2
   cloud_firestore: ^5.5.0
+  intl: ^0.18.1 # 追加
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
