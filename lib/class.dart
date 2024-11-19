@@ -1,9 +1,7 @@
-import 'package:postgres/postgres.dart'; 
-
-
+import 'package:postgres/postgres.dart';
 
 class DatabaseHelper {
-  static final String host = '34.133.185.219';
+  static final String host = '34.133.243.227';
   static final int port = 5432;
   static final String databaseName = 'ticket';
   static final String username = 'postgres';
@@ -31,7 +29,7 @@ class DatabaseHelper {
     required int friendId,
     required int userId,
     required int friendUserId,
-    String? requestType, // リクエストタイプ ('send', 'approve', 'reject')
+    String? requestType, // リクエストタイプ('send', 'approve', 'reject')
   }) async {
     // 現在の日付を取得
     final currentDate = DateTime.now();
