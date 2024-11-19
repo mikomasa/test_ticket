@@ -33,6 +33,7 @@ dependencies:
 
   # PostgreSQL接続用パッケージ
   postgres: ^2.4.2 # 最新バージョンを確認して適宜更新
+  postgres: ^2.4.2 # 最新バージョンを確認して適宜更新
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
