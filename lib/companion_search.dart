@@ -1,29 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:postgres/postgres.dart';
 import 'package:intl/intl.dart';
-import 'event_add.dart';
 
-void main() => runApp(EventListApp());
+void main() => runApp(CompanionSearchApp());
 
-class EventListApp extends StatelessWidget {
+class CompanionSearchApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: EventListPage(),
+      home: CompanionSearchPage(),
     );
   }
 }
 
-class EventListPage extends StatefulWidget {
+class CompanionSearchPage extends StatefulWidget {
   @override
-  _EventListPageState createState() => _EventListPageState();
+  _CompanionSearchPageState createState() => _CompanionSearchPageState();
 }
 
-class _EventListPageState extends State<EventListPage> {
+class _CompanionSearchPageState extends State<CompanionSearchPage> {
   final TextEditingController keyNameController = TextEditingController();
   DateTimeRange? dateRange;
 
-  List<Map<String, dynamic>> events = [];
+  List<Map<String, dynamic>> companions = [];
 
   // DB接続設定
   static const String host = '34.133.243.227';
@@ -56,15 +55,19 @@ class _EventListPageState extends State<EventListPage> {
     return '$formattedDate($weekDay)';
   }
 
-  Future<void> fetchEvents() async {
+  Future<void> fetchCompanions() async {
     final conn = await connect();
 
     String query = '''
-      SELECT *
-        FROM EVENT
-        WHERE (EVENT_NAME LIKE @keyName OR UNIT_NAME LIKE @keyName)
-          AND EVENT_DATE BETWEEN @startDate AND @endDate
-        ORDER BY EVENT_DATE ASC;
+      SELECT C.recruitment_title, C.recruitment_member, C.recruitment_limit, C.recruitment_text,
+          U.USER_NAME, 
+          E.EVENT_NAME, E.EVENT_DATE
+      FROM COMPANION C
+      JOIN EVENT E ON C.EVENT_ID = E.EVENT_ID
+      JOIN "USER" U ON C.USER_ID = U.USER_ID -- テーブル名をダブルクォートで囲む
+    WHERE (C.recruitment_title LIKE @keyName OR E.EVENT_NAME LIKE @keyName)
+      AND E.EVENT_DATE BETWEEN @startDate AND @endDate
+    ORDER BY E.EVENT_DATE ASC;
     ''';
 
     DateTime startDate = dateRange?.start ?? DateTime.now();
@@ -78,18 +81,20 @@ class _EventListPageState extends State<EventListPage> {
       });
 
       setState(() {
-        events = results
+        companions = results
             .map((row) => {
-                  'EVENT_NAME': row[2],
-                  'UNIT_NAME': row[3],
-                  'EVENT_TEXT': row[4],
-                  'EVENT_DATE': row[5].toString(),
-                  'EVENT_PLACE': row[6],
+                  'RECRUIMENT_TITLE': row[0],
+                  'RECRUIMENT_MEMBER': row[1],
+                  'RECRUIMENT_LIMIT': row[2]?.toString(),
+                  'RECRUIMENT_TEXT': row[3],
+                  'USER_NAME': row[4],
+                  'EVENT_NAME': row[5],
+                  'EVENT_DATE': row[6]?.toString(),
                 })
             .toList();
       });
     } catch (e) {
-      print("Failed to fetch events: $e");
+      print("Failed to fetch companions: $e");
     } finally {
       await conn.close();
     }
@@ -98,7 +103,6 @@ class _EventListPageState extends State<EventListPage> {
   Future<void> _selectDateRange(BuildContext context) async {
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      //カレンダーの設定を今年から100年間
       firstDate: DateTime(2024),
       lastDate: DateTime(2124),
       initialDateRange: dateRange,
@@ -110,38 +114,43 @@ class _EventListPageState extends State<EventListPage> {
     }
   }
 
-  void showEventDetails(BuildContext context, Map<String, dynamic> event) {
-    String formattedDate = event['EVENT_DATE'] != null
-        ? formatDateWithWeekday(DateTime.parse(event['EVENT_DATE']))
+  void showCompanionDetails(BuildContext context, Map<String, dynamic> companion) {
+    String formattedDate = companion['EVENT_DATE'] != null
+        ? formatDateWithWeekday(DateTime.parse(companion['EVENT_DATE']))
         : 'N/A';
+    String limitDate = companion['RECRUIMENT_LIMIT'] != null
+        ? formatDateWithWeekday(DateTime.parse(companion['RECRUIMENT_LIMIT']))
+        : 'N/A';
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(event['EVENT_NAME'] ?? 'N/A'),
+          title: Text(companion['RECRUIMENT_TITLE'] ?? 'N/A'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('ユニット名: ${event['UNIT_NAME'] ?? 'N/A'}'),
+              Text('イベント名: ${companion['EVENT_NAME'] ?? 'N/A'}'),
               Text('開催日: $formattedDate'),
-              Text('開催場所: ${event['EVENT_PLACE'] ?? 'N/A'}'),
-              Text('詳細: ${event['EVENT_TEXT'] ?? 'N/A'}'),
+              Text('募集メンバー: ${companion['RECRUIMENT_MEMBER']}'),
+              Text('募集者: ${companion['USER_NAME'] ?? 'N/A'}'),
+              Text('募集期限: $limitDate'),
+              Text('詳細: ${companion['RECRUIMENT_TEXT'] ?? 'N/A'}'),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
-                print('決定ボタンが押されました');
                 Navigator.of(context).pop();
               },
-              child: Text('決定'),
+              child: Text('この募集に参加する'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('戻る'),
+              child: Text('閉じる'),
             ),
           ],
         );
@@ -152,14 +161,14 @@ class _EventListPageState extends State<EventListPage> {
   @override
   void initState() {
     super.initState();
-    fetchEvents(); // 画面表示時にデータを取得
+    fetchCompanions();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("イベント一覧"),
+        title: Text("同行者検索"),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -190,24 +199,24 @@ class _EventListPageState extends State<EventListPage> {
             Divider(),
             SizedBox(height: 16),
             ElevatedButton(
-              onPressed: fetchEvents,
+              onPressed: fetchCompanions,
               child: Text('検索'),
             ),
             SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
-                itemCount: events.length,
+                itemCount: companions.length,
                 itemBuilder: (context, index) {
-                  var event = events[index];
-                  String formattedDate = event['EVENT_DATE'] != null
-                      ? formatDateWithWeekday(DateTime.parse(event['EVENT_DATE']))
+                  var companion = companions[index];
+                  String formattedDate = companion['EVENT_DATE'] != null
+                      ? formatDateWithWeekday(DateTime.parse(companion['EVENT_DATE']))
                       : 'N/A';
                   return Card(
                     child: ListTile(
-                      title: Text(event['EVENT_NAME'] ?? 'N/A'),
-                      subtitle: Text(event['UNIT_NAME'] ?? 'N/A'),
+                      title: Text(companion['RECRUIMENT_TITLE'] ?? 'N/A'),
+                      subtitle: Text(companion['EVENT_NAME'] ?? 'N/A'),
                       trailing: Text(formattedDate),
-                      onTap: () => showEventDetails(context, event),
+                      onTap: () => showCompanionDetails(context, companion),
                     ),
                   );
                 },
@@ -215,16 +224,6 @@ class _EventListPageState extends State<EventListPage> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => EventAddPage()),
-          );
-        },
-        child: Icon(Icons.add),
-        tooltip: '新規イベント作成',
       ),
     );
   }
