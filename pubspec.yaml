@@ -47,9 +47,9 @@ dependencies:
   flutter_chat_ui: ^1.6.4
   flutter_chat_types: ^3.6.2
   intl: ^0.18.1 # 追加
-  dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  # dev_dependencies:
+  # flutter_test:
+  #   sdk: flutter
 
 
   # The "flutter_lints" package below contains a set of recommended lints to
