@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:postgres/postgres.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'header.dart';
+import 'footer.dart';
+import 'event.dart';
+import 'event_dao.dart';
 import 'event_add.dart';
+import 'database_helper.dart';
 
 void main() => runApp(EventListApp());
 
@@ -9,6 +14,15 @@ class EventListApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      localizationsDelegates: [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: [
+        Locale('ja', ''), // 日本語をサポート
+      ],
+      locale: Locale('ja', ''), // デフォルトを日本語に設定
       home: EventListPage(),
     );
   }
@@ -22,85 +36,53 @@ class EventListPage extends StatefulWidget {
 class _EventListPageState extends State<EventListPage> {
   final TextEditingController keyNameController = TextEditingController();
   DateTimeRange? dateRange;
+  List<Event> events = [];
+  late EventDAO eventDAO;
 
-  List<Map<String, dynamic>> events = [];
+  @override
+  void initState() {
+    super.initState();
+    _initializeDB();
+  }
 
-  // DB接続設定
-  static const String host = '34.133.243.227';
-  static const int port = 5432;
-  static const String databaseName = 'ticket';
-  static const String username = 'postgres';
-  static const String password = 'testticket';
-
-  Future<PostgreSQLConnection> connect() async {
-    final conn = PostgreSQLConnection(
-      host,
-      port,
-      databaseName,
-      username: username,
-      password: password,
-    );
-    try {
-      await conn.open();
-      return conn;
-    } catch (e) {
-      print("Connection failed: $e");
-      rethrow;
-    }
+  // DB接続の初期化
+  Future<void> _initializeDB() async {
+    final conn = await DatabaseHelper.connect();
+    eventDAO = EventDAO(conn);
+    fetchEvents();
   }
 
   String formatDateWithWeekday(DateTime date) {
-    final weekDays = ['日', '月', '火', '水', '木', '金', '土'];
-    String formattedDate = DateFormat('MM/dd').format(date);
-    String weekDay = weekDays[date.weekday % 7];
-    return '$formattedDate($weekDay)';
+    final formatter = DateFormat('MM月dd日(E)', 'ja'); // 日本語形式に変更
+    return formatter.format(date);
   }
 
+  // イベントデータの取得
   Future<void> fetchEvents() async {
-    final conn = await connect();
-
-    String query = '''
-      SELECT *
-        FROM EVENT
-        WHERE (EVENT_NAME LIKE @keyName OR UNIT_NAME LIKE @keyName)
-          AND EVENT_DATE BETWEEN @startDate AND @endDate
-        ORDER BY EVENT_DATE ASC;
-    ''';
-
-    DateTime startDate = dateRange?.start ?? DateTime.now();
-    DateTime endDate = dateRange?.end ?? DateTime.now().add(Duration(days: 365));
-
     try {
-      final results = await conn.query(query, substitutionValues: {
-        'keyName': '%${keyNameController.text}%',
-        'startDate': startDate.toIso8601String(),
-        'endDate': endDate.toIso8601String(),
-      });
+      DateTime startDate = dateRange?.start ?? DateTime.now();
+      DateTime endDate =
+          dateRange?.end ?? DateTime.now().add(Duration(days: 365));
+      final fetchedEvents = await eventDAO.getEventsBySearchCriteria(
+        form: keyNameController.text,
+        startDate: startDate,
+        endDate: endDate,
+      );
 
       setState(() {
-        events = results
-            .map((row) => {
-                  'EVENT_NAME': row[2],
-                  'UNIT_NAME': row[3],
-                  'EVENT_TEXT': row[4],
-                  'EVENT_DATE': row[5].toString(),
-                  'EVENT_PLACE': row[6],
-                })
-            .toList();
+        events = fetchedEvents;
       });
     } catch (e) {
       print("Failed to fetch events: $e");
-    } finally {
-      await conn.close();
     }
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      //カレンダーの設定を今年から100年間
       firstDate: DateTime(2024),
       lastDate: DateTime(2124),
+      locale: Locale('ja'), // 日本語を明示
       initialDateRange: dateRange,
     );
     if (picked != null && picked != dateRange) {
@@ -110,29 +92,29 @@ class _EventListPageState extends State<EventListPage> {
     }
   }
 
-  void showEventDetails(BuildContext context, Map<String, dynamic> event) {
-    String formattedDate = event['EVENT_DATE'] != null
-        ? formatDateWithWeekday(DateTime.parse(event['EVENT_DATE']))
-        : 'N/A';
+  void showEventDetails(BuildContext context, Event event) {
+    String formattedDate = formatDateWithWeekday(event.eventDate);
+    String formattedTime = DateFormat('HH:mm').format(event.eventDate);
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(event['EVENT_NAME'] ?? 'N/A'),
+          title: Text(event.eventName),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('ユニット名: ${event['UNIT_NAME'] ?? 'N/A'}'),
+              Text('ユニット名: ${event.unitName}'),
               Text('開催日: $formattedDate'),
-              Text('開催場所: ${event['EVENT_PLACE'] ?? 'N/A'}'),
-              Text('詳細: ${event['EVENT_TEXT'] ?? 'N/A'}'),
+              Text('開催時間: $formattedTime'),
+              Text('開催場所: ${event.eventPlace}'),
+              Text('詳細: ${event.eventText}'),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
-                print('決定ボタンが押されました');
                 Navigator.of(context).pop();
               },
               child: Text('決定'),
@@ -150,17 +132,9 @@ class _EventListPageState extends State<EventListPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    fetchEvents(); // 画面表示時にデータを取得
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("イベント一覧"),
-      ),
+      appBar: AppHeader(title: 'イベント一覧'),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -183,7 +157,7 @@ class _EventListPageState extends State<EventListPage> {
                 ),
                 ElevatedButton(
                   onPressed: () => _selectDateRange(context),
-                  child: Text('範囲指定'),
+                  child: Icon(Icons.calendar_today),
                 ),
               ],
             ),
@@ -199,13 +173,11 @@ class _EventListPageState extends State<EventListPage> {
                 itemCount: events.length,
                 itemBuilder: (context, index) {
                   var event = events[index];
-                  String formattedDate = event['EVENT_DATE'] != null
-                      ? formatDateWithWeekday(DateTime.parse(event['EVENT_DATE']))
-                      : 'N/A';
+                  String formattedDate = formatDateWithWeekday(event.eventDate);
                   return Card(
                     child: ListTile(
-                      title: Text(event['EVENT_NAME'] ?? 'N/A'),
-                      subtitle: Text(event['UNIT_NAME'] ?? 'N/A'),
+                      title: Text(event.eventName),
+                      subtitle: Text(event.unitName),
                       trailing: Text(formattedDate),
                       onTap: () => showEventDetails(context, event),
                     ),
@@ -226,6 +198,7 @@ class _EventListPageState extends State<EventListPage> {
         child: Icon(Icons.add),
         tooltip: '新規イベント作成',
       ),
+      bottomNavigationBar: AppFooter(), // フッターの追加
     );
   }
 }

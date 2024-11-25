@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:postgres/postgres.dart';
-import 'class.dart'; // class.dartのインポート
-import 'event_list.dart'; // イベント一覧画面のインポート
-import 'package:intl/intl.dart'; // インポートを追加
+import 'package:intl/intl.dart';
+import 'package:flutter/cupertino.dart';
+import 'header.dart';
+import 'footer.dart';
+import 'event_list.dart';
+import 'event.dart';
+import 'event_dao.dart';
+import 'database_helper.dart';
 
 class EventAddPage extends StatefulWidget {
   @override
@@ -14,32 +18,32 @@ class _EventAddPageState extends State<EventAddPage> {
   final TextEditingController unitNameController = TextEditingController();
   final TextEditingController eventTextController = TextEditingController();
   final TextEditingController eventPlaceController = TextEditingController();
+  final TextEditingController organizerNameController =TextEditingController();
   int eventStatus = 1; // デフォルト値
-  DateTime? eventDate; // イベント開催日
-  TimeOfDay? eventTime; // イベント時間
-  bool isFormValid = false; // フォームが有効かどうかの状態
+  DateTime? eventDate;
+  TimeOfDay? eventTime;
+  bool isFormValid = false;
 
   @override
   void initState() {
     super.initState();
-    // 各フィールドのリスナーを設定
     eventNameController.addListener(_validateForm);
     unitNameController.addListener(_validateForm);
     eventTextController.addListener(_validateForm);
     eventPlaceController.addListener(_validateForm);
+    organizerNameController.addListener(_validateForm);
   }
 
   @override
   void dispose() {
-    // コントローラーのリスナーを解放
     eventNameController.dispose();
     unitNameController.dispose();
     eventTextController.dispose();
     eventPlaceController.dispose();
+    organizerNameController.dispose();
     super.dispose();
   }
 
-  // フォームのバリデーションをチェック
   void _validateForm() {
     setState(() {
       isFormValid = eventNameController.text.isNotEmpty &&
@@ -47,41 +51,74 @@ class _EventAddPageState extends State<EventAddPage> {
           eventTextController.text.isNotEmpty &&
           eventPlaceController.text.isNotEmpty &&
           eventDate != null &&
-          eventTime != null; // イベント日付と時間も必須
+          eventTime != null &&
+          organizerNameController.text.isNotEmpty;
     });
   }
 
-  // 日付選択
   Future<void> _pickEventDate() async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2024),
       lastDate: DateTime(2124),
+      locale: Locale('ja'), // 日本語ロケールを設定
     );
     if (pickedDate != null && pickedDate != eventDate) {
       setState(() {
         eventDate = pickedDate;
-        _validateForm(); // 日付選択後にフォームを検証
+        _validateForm();
       });
     }
   }
 
-  // 時間選択
-  Future<void> _pickEventTime() async {
-    final TimeOfDay? pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
+  Future<void> _showTimePicker(BuildContext context) async {
+    Duration initialTimer = Duration(
+      hours: eventTime?.hour ?? 0,
+      minutes: eventTime?.minute ?? 0,
     );
-    if (pickedTime != null && pickedTime != eventTime) {
-      setState(() {
-        eventTime = pickedTime;
-        _validateForm(); // 時間選択後にフォームを検証
-      });
-    }
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        height: 300,
+        color: Colors.white,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              child: const Text(
+                '時間を選択してください',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              child: CupertinoTimerPicker(
+                mode: CupertinoTimerPickerMode.hm,
+                initialTimerDuration: initialTimer,
+                onTimerDurationChanged: (Duration newDuration) {
+                  setState(() {
+                    eventTime = TimeOfDay(
+                      hour: newDuration.inHours,
+                      minute: newDuration.inMinutes % 60,
+                    );
+                    _validateForm();
+                  });
+                },
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('決定'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  // 選択した日付と時間を統合
   DateTime? getCombinedDateTime() {
     if (eventDate != null && eventTime != null) {
       return DateTime(
@@ -96,23 +133,24 @@ class _EventAddPageState extends State<EventAddPage> {
   }
 
   Future<void> _submitForm() async {
-    final DateTime? combinedDateTime = getCombinedDateTime(); // 統合した日
+    final DateTime? combinedDateTime = getCombinedDateTime();
     if (combinedDateTime == null) return;
 
-    final conn = await DatabaseHelper.connect(); // DB接続
-    try {
-      await DatabaseHelper.insertEvent(
-        conn: conn,
-        userId: 1,
-        eventName: eventNameController.text,
-        unitName: unitNameController.text,
-        eventDate: combinedDateTime, // 統合した日時を送信
-        eventText: eventTextController.text,
-        eventPlace: eventPlaceController.text,
-        eventStatus: 1,
-      );
+    final conn = await DatabaseHelper.connect();
+    final eventDAO = EventDAO(conn);
 
-      // 成功時に一覧画面に遷移
+    final event = Event(
+      userId: 1, // 仮のユーザーID
+      eventName: eventNameController.text,
+      unitName: unitNameController.text,
+      eventDate: combinedDateTime,
+      eventText: eventTextController.text,
+      eventPlace: eventPlaceController.text,
+      organizerName: organizerNameController.text,
+    );
+
+    try {
+      await eventDAO.insertEvent(event);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => EventListPage()),
@@ -120,16 +158,14 @@ class _EventAddPageState extends State<EventAddPage> {
     } catch (e) {
       print("登録エラー: $e");
     } finally {
-      await conn.close(); // 接続を閉じる
+      await conn.close();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('イベント登録'),
-      ),
+      appBar: AppHeader(title: '新規イベント追加'),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
@@ -144,6 +180,10 @@ class _EventAddPageState extends State<EventAddPage> {
                 decoration: InputDecoration(labelText: 'ユニット名'),
               ),
               TextField(
+                controller: organizerNameController,
+                decoration: InputDecoration(labelText: '主催者名'),
+              ),
+              TextField(
                 controller: eventPlaceController,
                 decoration: InputDecoration(labelText: '開催場所'),
               ),
@@ -152,48 +192,50 @@ class _EventAddPageState extends State<EventAddPage> {
                 decoration: InputDecoration(labelText: '詳細'),
               ),
               SizedBox(height: 20),
-              // 日付選択ボタンと選択した日付の表示
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     eventDate == null
                         ? '日付を選択してください'
-                        : '開催日時: ${DateFormat('yyyy-MM-dd').format(eventDate!)}',
+                        : '開催日時: ${DateFormat('yyyy年MM月dd日', 'ja').format(eventDate!)}',
                   ),
                   ElevatedButton(
                     onPressed: _pickEventDate,
-                    child: Text('日付選択'),
+                    child: Icon(Icons.calendar_today),
                   ),
                 ],
               ),
               Divider(),
               SizedBox(height: 20),
-              // 時間選択ボタンと選択した時間の表示
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    eventTime == null
-                        ? '時間を選択してください'
-                        : '開催時間: ${eventTime!.format(context)}',
-                  ),
-                  ElevatedButton(
-                    onPressed: _pickEventTime,
-                    child: Text('時間選択'),
-                  ),
-                ],
-              ),
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Text(
+      eventTime == null
+          ? '時間を選択してください'
+          : '${eventTime!.hour.toString()}時 ${eventTime!.minute.toString()}分',
+    ),
+    ElevatedButton(
+      onPressed: () async {
+        await _showTimePicker(context);
+      },
+      child: Icon(Icons.access_time),
+    ),
+  ],
+),
+
               Divider(),
               SizedBox(height: 20),
               ElevatedButton(
-                onPressed: isFormValid ? _submitForm : null, // フォームが有効な場合のみ有効化
+                onPressed: isFormValid ? _submitForm : null,
                 child: Text('登録'),
               ),
             ],
           ),
         ),
       ),
+      bottomNavigationBar: AppFooter(), // フッターの追加
     );
   }
 }
