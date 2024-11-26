@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "367479444306",
+    "project_id": "test-ticket-ca5b1",
+    "storage_bucket": "test-ticket-ca5b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:367479444306:android:c28c732621f3054477a08b",
+        "android_client_info": {
+          "package_name": "com.example.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8RK70_pUoRiZ9N_H5lopvdvAhg9-EWic"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
