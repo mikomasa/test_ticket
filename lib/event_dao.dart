@@ -85,4 +85,38 @@ class EventDAO {
       });
     }).toList();
   }
+  
+  //部分一致検索（日付以外）
+  Future<List<Event>> getEventsSearch({
+    String? form, // 検索用の引数 form
+  }) async {
+    // 部分一致検索用のSQLクエリ
+    String query = '''
+    SELECT e.* FROM event e
+    WHERE
+      (e.EVENT_NAME LIKE @form OR e.UNIT_NAME LIKE @form OR e.EVENT_TEXT LIKE @form)
+    ORDER BY e.EVENT_DATE ASC
+    LIMIT 5
+  ''';
+
+    final results = await conn.query(query, substitutionValues: {
+      'form': '%$form%', // formに渡された値で部分一致検索
+    });
+
+    return results.map((row) {
+      return Event.fromMap({
+        'EVENT_ID': row[0],
+        'USER_ID': row[1],
+        'EVENT_NAME': row[2],
+        'UNIT_NAME': row[3],
+        'EVENT_TEXT': row[4],
+        'EVENT_DATE': row[5],
+        'EVENT_PLACE': row[6],
+        'SALE_FLAG': row[7],
+        'EVENT_STATUS': row[8],
+        'CANCEL_STATUS': row[9],
+        'ORGANIZER_NAME': row[10] ?? '',
+      });
+    }).toList();
+  }
 }
