@@ -1,35 +1,13 @@
-import 'class.dart';  // class.dartのインポート
+import 'package:flutter/material.dart';
+import 'companion_search.dart';
 
-void main() async {
-  final conn = await DatabaseHelper.connect();  // DB接続
+void main() => runApp(EventApp());
 
-  // 必要な操作を呼び出し
-  // await DatabaseHelper.insertFriend(
-  //   conn: conn,
-  //   friendId: 1,
-  //   userId: 1,
-  //   friendUserId: 2,
-  //   requestType: 'send',
-  // );
-
-  await DatabaseHelper.insertEvent(
-    conn: conn,
-    userId: 1,
-    eventName: 'live恒星',
-    unitName: '結束バンド',
-    eventText: 'Zepp羽田でまってるぜ！',
-    eventPlace: 'Zepp羽田',
-    eventStatus: 1,
-  );
-
-  await DatabaseHelper.insertParticipation(
-    conn: conn,
-    userId: 1,
-    companionId: 2,
-    requestType: '募集者',
-  );
-
-  // 接続を閉じる
-  await conn.close();
-  print("正常に終了しました。");
+class EventApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: CompanionSearchApp(), //最初に登録画面を表示
+    );
+  }
 }

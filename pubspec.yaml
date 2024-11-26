@@ -30,10 +30,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.19.0 # intl パッケージも必要です
 
   # PostgreSQL接続用パッケージ
   postgres: ^2.4.2 # 最新バージョンを確認して適宜更新
-
+  
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -45,8 +48,6 @@ dependencies:
   firebase_storage: ^12.3.6
   google_sign_in: ^6.2.2
   cloud_firestore: ^5.5.0
-  intl: ^0.18.1 # 追加
-
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

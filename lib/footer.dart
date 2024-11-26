@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'companion_search.dart';
+import 'companion_install.dart';
+
 
 class AppFooter extends StatefulWidget {
   @override
@@ -49,6 +51,11 @@ void _onItemTapped(int index) async {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => CompanionSearchApp()), // ここで遷移先の画面を設定
+                      );
+                    }else if (item['label'] == '募集登録') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => CompanionInsert()), // ここで遷移先の画面を設定
                       );
                     } else {
                       // その他のアイテムはボトムシートを閉じる

@@ -19,10 +19,6 @@ class EventListApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: [
-        Locale('ja', ''), // 日本語をサポート
-      ],
-      locale: Locale('ja', ''), // デフォルトを日本語に設定
       home: EventListPage(),
     );
   }
