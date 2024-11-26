@@ -44,13 +44,12 @@ dependencies:
   firebase_storage: ^12.3.6
   google_sign_in: ^6.2.2
   cloud_firestore: ^5.5.0
-  flutter_chat_ui: ^1.6.4
+  flutter_chat_ui: ^1.6.15
   flutter_chat_types: ^3.6.2
   intl: ^0.18.1 # 追加
   # dev_dependencies:
   # flutter_test:
   #   sdk: flutter
-
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -60,7 +59,6 @@ dependencies:
   flutter_lints: ^4.0.0
   json_serializable: ^6.8.0
   build_runner: ^2.4.11
-  
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
